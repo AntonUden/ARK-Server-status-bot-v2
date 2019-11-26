@@ -7,5 +7,5 @@
 			"port": "27015"
 		}
 	],
-	"scanInterval": 30000
+	"scan_interval": 30000
 }

@@ -8,4 +8,4 @@ for(let i: number = 0; i < config.servers.length; i++) {
 	servers.push(config.servers[i]);
 }
 
-const bot = new ARKNotificationBot(config.discord_token, servers, config.scanInterval);
+const bot = new ARKNotificationBot(config.discord_token, servers, config.scan_interval);
