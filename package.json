@@ -1,0 +1,21 @@
+{
+  "name": "ark-server-notifications",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./dist/app.js",
+  "scripts": {
+    "start": "nodemon ./dist/app.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/gamedig": "^1.0.0",
+    "@types/node": "^12.12.14",
+    "typescript": "^3.7.2"
+  },
+  "dependencies": {
+    "discord.js": "^11.5.1",
+    "gamedig": "^2.0.20",
+    "nodemon": "^2.0.1"
+  }
+}
