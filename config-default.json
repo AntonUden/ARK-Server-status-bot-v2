@@ -12,5 +12,5 @@
 		"max_messages": 10,
 		"ban_time": 60
 	},
-	"max_messages_per_minute": 10
+	"scan_interval": 30000
 }
