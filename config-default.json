@@ -7,5 +7,10 @@
 			"port": "27015"
 		}
 	],
-	"scan_interval": 30000
+	"rate_limit": {
+		"enabled": true,
+		"max_messages": 10,
+		"ban_time": 60
+	},
+	"max_messages_per_minute": 10
 }

@@ -25,14 +25,30 @@ export default class ARKNotificationBot {
 	private _oldResult: ICheckResult[];
 	private _oldPlayers: { [key: string]: string[] };
 
+	private _requestCount: { [key: string]: number };
+	private _bannedUsers: { [key: string]: number };
+
 	public static INSTANCE: ARKNotificationBot;
 
-	constructor(token: string, servers: IServer[], scanInterval: number) {
+	private _rateLimitEnabled: boolean;
+	private _rateLimitMaxMessages: number;
+	private _rateLimitBanTime: number;
+
+
+	constructor(token: string, servers: IServer[], scanInterval: number, useRateLimit: boolean = false, maxMessagesPerMinute: number = 0, rateLimitBanTime: number = 0) {
 		ARKNotificationBot.INSTANCE = this;
 		this._client = new Discord.Client();
 		this._servers = servers;
+		
 		this._oldPlayers = {};
+		this._requestCount = {};
+		this._bannedUsers = {};
+
 		this._notificationUsers = [];
+
+		this._rateLimitEnabled = useRateLimit;
+		this._rateLimitMaxMessages = maxMessagesPerMinute;
+		this._rateLimitBanTime = rateLimitBanTime;
 
 		if (FS.existsSync('./data.json')) {
 			this.loadData();
@@ -82,6 +98,26 @@ export default class ARKNotificationBot {
 
 				msg.reply('Usage:\n!notifications enable\n!notifications disable');
 			} else if (msg.content.toLocaleLowerCase() == '!status') {
+				if(ARKNotificationBot.INSTANCE._bannedUsers[msg.author.id] != undefined) {
+					msg.reply("You have been rate limited. Please try again in " + ARKNotificationBot.INSTANCE._bannedUsers[msg.author.id] + " minutes");
+					return;
+				}
+
+				if(ARKNotificationBot.INSTANCE._rateLimitEnabled) {
+					
+					if(ARKNotificationBot.INSTANCE._requestCount[msg.author.id] == undefined) {
+						ARKNotificationBot.INSTANCE._requestCount[msg.author.id] = 0;
+					}
+
+					ARKNotificationBot.INSTANCE._requestCount[msg.author.id]++;
+
+					if(ARKNotificationBot.INSTANCE._requestCount[msg.author.id] > ARKNotificationBot.INSTANCE._rateLimitMaxMessages) {
+						ARKNotificationBot.INSTANCE._bannedUsers[msg.author.id] = ARKNotificationBot.INSTANCE._rateLimitBanTime;
+						ARKNotificationBot.INSTANCE._bannedUsers[45364356] = ARKNotificationBot.INSTANCE._rateLimitBanTime;
+						console.log("Banned " + msg.author.username + " for " + ARKNotificationBot.INSTANCE._rateLimitBanTime + " minutes");
+					}
+				}
+
 				console.log(msg.author.username + ' requested server status');
 				try {
 					let result: ICheckResult[] = [];
@@ -109,6 +145,25 @@ export default class ARKNotificationBot {
 		setInterval(function () {
 			ARKNotificationBot.INSTANCE.checkLoop();
 		}, scanInterval);
+
+		if(this._rateLimitEnabled) {
+			console.log("Using rate limit");
+			setInterval(function() {
+				for(let i in ARKNotificationBot.INSTANCE._requestCount) {
+					ARKNotificationBot.INSTANCE._requestCount[i] = 0;
+				}
+
+				for(let i in ARKNotificationBot.INSTANCE._bannedUsers) {
+					if(ARKNotificationBot.INSTANCE._bannedUsers[i] <= 1) {
+						delete ARKNotificationBot.INSTANCE._bannedUsers[i];
+						continue;
+					}
+
+					ARKNotificationBot.INSTANCE._bannedUsers[i]--;
+				}
+			}, 60000); // 1 minute
+		}
+
 		ARKNotificationBot.INSTANCE.checkLoop();
 	}
 
@@ -247,7 +302,7 @@ export default class ARKNotificationBot {
 
 	async checkAll(): Promise<ICheckResult[]> {
 		let results: ICheckResult[] = [];
-		console.log('Checking all sevrers');
+		console.log('Checking all servers');
 
 		for (let i: number = 0; i < this._servers.length; i++) {
 			console.log('Checking server: ' + this._servers[i].name);
