@@ -62,15 +62,89 @@ export default class ARKNotificationBot {
 			console.log(`Logged in as ${this._client.user.tag}!`);
 		});
 
+		this._client.on("guildCreate", guild => {
+			console.log(`New guild joined: ${guild.name} (id: ${guild.id}).`);
+		});
+		  
+		this._client.on("guildDelete", guild => {
+			console.log(`I have been removed from: ${guild.name} (id: ${guild.id})`);
+		});
+
 		this._client.on('message', async function (msg: Message) {
 			if (msg.author.bot) {
 				return;
 			}
 
-			if (msg.content.toLocaleLowerCase().startsWith('!notifications ') || msg.content.toLocaleLowerCase() == '!notifications') {
-				let msgParts: string[] = msg.content.toLocaleLowerCase().split(' ');
-				if (msgParts.length > 1) {
-					if (msgParts[1].toLocaleLowerCase() == 'enable') {
+			if(msg.content.toLocaleLowerCase() == '!help') {
+				ARKNotificationBot.INSTANCE.showHelp(msg);
+				return;
+			}
+
+			if(msg.content.toLocaleLowerCase().startsWith('!arkbot ') || msg.content.toLocaleLowerCase() == '!arkbot') {
+				let parts: string[] = msg.content.toLocaleLowerCase().split(" ");
+
+				if(parts.length <= 1) {
+					ARKNotificationBot.INSTANCE.showHelp(msg);
+					return;
+				}
+
+				if(parts[1] == "help") {
+					ARKNotificationBot.INSTANCE.showHelp(msg);
+					return;
+				}
+
+				if(parts[1] == "status") {
+					if(ARKNotificationBot.INSTANCE._bannedUsers[msg.author.id] != undefined) {
+						msg.reply("You have been rate limited. Please try again in " + ARKNotificationBot.INSTANCE._bannedUsers[msg.author.id] + " minutes");
+						return;
+					}
+	
+					if(ARKNotificationBot.INSTANCE._rateLimitEnabled) {
+						
+						if(ARKNotificationBot.INSTANCE._requestCount[msg.author.id] == undefined) {
+							ARKNotificationBot.INSTANCE._requestCount[msg.author.id] = 0;
+						}
+	
+						ARKNotificationBot.INSTANCE._requestCount[msg.author.id]++;
+	
+						if(ARKNotificationBot.INSTANCE._requestCount[msg.author.id] > ARKNotificationBot.INSTANCE._rateLimitMaxMessages) {
+							ARKNotificationBot.INSTANCE._bannedUsers[msg.author.id] = ARKNotificationBot.INSTANCE._rateLimitBanTime;
+							ARKNotificationBot.INSTANCE._bannedUsers[45364356] = ARKNotificationBot.INSTANCE._rateLimitBanTime;
+							console.log("Banned " + msg.author.username + " for " + ARKNotificationBot.INSTANCE._rateLimitBanTime + " minutes");
+						}
+					}
+	
+					console.log(msg.author.username + ' requested server status');
+					try {
+						let result: ICheckResult[] = [];
+						msg.reply('Checking server...');
+						result = await ARKNotificationBot.INSTANCE.checkAll();
+	
+	
+						let text = 'Server status:';
+						result.forEach(res => {
+							text += '\n----- ' + res.server.name + ' -----';
+							text += '\nStatus: ' + (res.status.online ? 'Online' : 'Offline');
+							if (res.status.online) {
+								text += '\nName: ' + res.status.result.name;
+								text += '\nPlayers: ' + res.status.result.players.length + '/' + res.status.result.maxplayers;
+								text += '\nMap: ' + res.status.result.map;
+							}
+						});
+						msg.reply(text);
+					} catch (err) {
+						console.log(err);
+					}
+					return;
+				}
+
+				if(parts[1] == "notifications") {
+					if(parts.length != 3) {
+						ARKNotificationBot.INSTANCE.showHelp(msg);
+						return;
+					}
+
+					if (parts[2] == 'enable') {
 						if (ARKNotificationBot.INSTANCE._notificationUsers.includes(msg.author.id)) {
 							msg.reply('Notifications already enabled');
 						} else {
@@ -80,7 +154,7 @@ export default class ARKNotificationBot {
 						}
 
 						return;
-					} else if (msgParts[1].toLocaleLowerCase() == 'disable') {
+					} else if (parts[2] == 'disable') {
 						if (ARKNotificationBot.INSTANCE._notificationUsers.includes(msg.author.id)) {
 							var index: number = ARKNotificationBot.INSTANCE._notificationUsers.indexOf(msg.author.id);
 							if (index !== -1) {
@@ -93,51 +167,10 @@ export default class ARKNotificationBot {
 						}
 
 						return;
+					} else {
+						ARKNotificationBot.INSTANCE.showHelp(msg);
+						return;
 					}
-				}
-
-				msg.reply('Usage:\n!notifications enable\n!notifications disable');
-			} else if (msg.content.toLocaleLowerCase() == '!status') {
-				if(ARKNotificationBot.INSTANCE._bannedUsers[msg.author.id] != undefined) {
-					msg.reply("You have been rate limited. Please try again in " + ARKNotificationBot.INSTANCE._bannedUsers[msg.author.id] + " minutes");
-					return;
-				}
-
-				if(ARKNotificationBot.INSTANCE._rateLimitEnabled) {
-					
-					if(ARKNotificationBot.INSTANCE._requestCount[msg.author.id] == undefined) {
-						ARKNotificationBot.INSTANCE._requestCount[msg.author.id] = 0;
-					}
-
-					ARKNotificationBot.INSTANCE._requestCount[msg.author.id]++;
-
-					if(ARKNotificationBot.INSTANCE._requestCount[msg.author.id] > ARKNotificationBot.INSTANCE._rateLimitMaxMessages) {
-						ARKNotificationBot.INSTANCE._bannedUsers[msg.author.id] = ARKNotificationBot.INSTANCE._rateLimitBanTime;
-						ARKNotificationBot.INSTANCE._bannedUsers[45364356] = ARKNotificationBot.INSTANCE._rateLimitBanTime;
-						console.log("Banned " + msg.author.username + " for " + ARKNotificationBot.INSTANCE._rateLimitBanTime + " minutes");
-					}
-				}
-
-				console.log(msg.author.username + ' requested server status');
-				try {
-					let result: ICheckResult[] = [];
-					msg.reply('Checking server...');
-					result = await ARKNotificationBot.INSTANCE.checkAll();
-
-
-					let text = 'Server status:';
-					result.forEach(res => {
-						text += '\n----- ' + res.server.name + ' -----';
-						text += '\nStatus: ' + (res.status.online ? 'Online' : 'Offline');
-						if (res.status.online) {
-							text += '\nName: ' + res.status.result.name;
-							text += '\nPlayers: ' + res.status.result.players.length + '/' + res.status.result.maxplayers;
-							text += '\nMap: ' + res.status.result.map;
-						}
-					});
-					msg.reply(text);
-				} catch (err) {
-					console.log(err);
 				}
 			}
 		});
@@ -320,5 +353,9 @@ export default class ARKNotificationBot {
 				status: checkResult
 			});
 		});
+	}
+
+	showHelp(msg: Message) {
+		msg.reply('Usage:\n!arkbot help\n!arkbot status\n!arkbot notifications enable\n!arkbot notifications disable');
 	}
 }
